@@ -1,10 +1,36 @@
 <?php
-$filename = "1";
-$handle = fopen($filename, "rb");
-$raw = fread($handle, filesize($filename));
-fclose($handle);
-var_dump($raw);
-$sans_binary_headers = explode('$$$', bin2hex($raw))[1];
-$sans_the_rest = explode('000',$sans_binary_headers)[0];
-$cleaned = str_replace( array("^M","^C"), array("\n","\r\n"), $sans_the_rest);
-file_put_contents('hackish/' . $filename '.txt');
+$filenames = array( "1", "2", "3" );
+foreach($filenames as $filename) {
+	$handle = fopen($filename, "rb");
+	$raw = fread($handle, filesize($filename));
+	fclose($handle);
+	$cleaned = trim(str_ireplace( array("\x0D", "^M", "\xD2", "\xF5\xF5", "\xF5"), array("\n","", '"', '"',"'"), $raw));
+	$cleaned = 'Date:' . explode('Date:', $cleaned)[1];
+	$cleaned = substr($cleaned, 0, strpos($cleaned, "\x03"));
+	var_dump($cleaned);
+	if (false === strpos($cleaned,"###")) {
+		$ps = array_filter(explode("\n", $pieces[1]), function($a){return !empty($a);});
+		foreach($ps as $p) {
+			if (false !== strpos($p, ":")) {
+				echo "HAS MARKER $p";
+			}
+		}
+	} else {
+		$pieces = explode("###",$cleaned);
+	}
+	$metas = explode("\n", $pieces[0]);
+	$d = array();
+	foreach($metas as $meta) {
+		if (false !== strpos($meta, ":")) {
+			$ks = explode(":",$meta);
+			$d[trim($ks[0])] = trim($ks[1]);
+		}
+	}
+	$ps = array_filter(explode("\n", $pieces[1]), function($a){return !empty($a);});
+	$results = array(
+		'meta' => $d,
+		'content' => $ps
+	);
+	var_dump($results);
+	file_put_contents('hackish/' . $filename . '.txt', json_encode($results));
+}
